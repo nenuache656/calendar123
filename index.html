@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Финансовый календарь</title>
+  <meta name="description" content="Личный финансовый календарь с инфографикой: доходы, расходы, бюджет и графики." />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Chart.js для инфографики -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-icon">💰</span>
+        <div class="brand-text">
+          <h1>Финансовый календарь</h1>
+          <span class="tagline">Доходы · Расходы · Бюджет · Инфографика</span>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <button class="btn btn-outline" id="btnToday">Сегодня</button>
+        <button class="btn btn-primary" id="btnAdd">+ Событие</button>
+        <button class="btn btn-outline" id="btnImport">Импорт CSV</button>
+        <button class="btn btn-ghost" id="btnExport">Экспорт JSON</button>
+        <button class="btn btn-ghost" id="btnTheme" aria-label="Сменить тему">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Верхняя панель индикаторов -->
+    <section class="dashboard">
+      <div class="card stat-card income">
+        <div class="stat-label">Доходы (месяц)</div>
+        <div class="stat-value" id="statIncome">0 ₽</div>
+        <div class="stat-delta positive" id="statIncomeDelta">—</div>
+      </div>
+
+      <div class="card stat-card expense">
+        <div class="stat-label">Расходы (месяц)</div>
+        <div class="stat-value" id="statExpense">0 ₽</div>
+        <div class="stat-delta negative" id="statExpenseDelta">—</div>
+      </div>
+
+      <div class="card stat-card balance">
+        <div class="stat-label">Баланс</div>
+        <div class="stat-value" id="statBalance">0 ₽</div>
+        <div class="stat-delta" id="statBalanceDelta">—</div>
+      </div>
+
+      <div class="card stat-card savings">
+        <div class="stat-label">Сбережения</div>
+        <div class="stat-value" id="statSavings">0 %</div>
+        <div class="stat-delta" id="statSavingsDelta">—</div>
+      </div>
+    </section>
+
+    <!-- Быстрое добавление -->
+    <section class="quick-add">
+      <div class="container">
+        <h3>Быстрое добавление</h3>
+        <form id="quickForm">
+          <select id="quickType">
+            <option value="expense">Расход</option>
+            <option value="income">Доход</option>
+            <option value="transfer">Перевод</option>
+          </select>
+          <select id="quickCategory"></select>
+          <input type="number" id="quickAmount" min="0" step="0.01" placeholder="Сумма" />
+          <input type="text" id="quickDesc" placeholder="Описание (опционально)" />
+          <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+        <p class="quick-hint">Подсказка: нажмите клавишу <kbd>N</kbd>, чтобы быстро открыть полную форму события.</p>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- Календарь -->
+      <section class="card calendar-panel">
+        <div class="card-header">
+          <h2 id="monthTitle">Январь 2026</h2>
+          <div class="nav">
+            <button class="nav-btn" id="btnPrevMonth">‹</button>
+            <button class="nav-btn" id="btnNextMonth">›</button>
+          </div>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid"></div>
+
+        <div class="events-list-header">
+          <h3>События месяца</h3>
+          <span class="badge" id="eventsCount">0</span>
+        </div>
+
+        <div class="events-list" id="eventsList">
+          <!-- события вставятся здесь -->
+          <div class="empty-events">Нет событий в этом месяце. Используйте «Быстрое добавление» или кнопку «+ Событие».</div>
+        </div>
+      </section>
+
+      <!-- Инфографика -->
+      <section class="card charts-panel">
+        <div class="chart-section">
+          <h3>Доходы vs Расходы</h3>
+          <div class="chart-wrapper">
+            <canvas id="chartIncomeExpense"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <h3>Расходы по категориям</h3>
+          <div class="chart-wrapper">
+            <canvas id="chartCategories"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <h3>Динамика по месяцам</h3>
+          <div class="chart-wrapper">
+            <canvas id="chartTrend"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Модальное окно добавления события -->
+  <dialog class="modal" id="eventModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Новое финансовое событие</h3>
+        <button class="modal-close" id="btnCloseModal" aria-label="Закрыть">×</button>
+      </div>
+
+      <form id="eventForm">
+        <input type="hidden" id="eventId" />
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Тип</label>
+            <select id="eventType" required>
+              <option value="income">Доход</option>
+              <option value="expense">Расход</option>
+              <option value="transfer">Перевод</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Категория</label>
+            <select id="eventCategory" required>
+              <option value="">Выберите категорию</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Сумма</label>
+            <div class="input-with-suffix">
+              <input type="number" id="eventAmount" min="0" step="0.01" required placeholder="0" />
+              <span>₽</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Дата</label>
+            <input type="date" id="eventDate" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Описание</label>
+            <input type="text" id="eventDescription" required placeholder="Например: Зарплата" />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="btnCancelModal">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Модальное окно импорта CSV -->
+  <dialog class="modal" id="importModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Импорт из CSV</h3>
+        <button class="modal-close" id="btnCloseImport" aria-label="Закрыть">×</button>
+      </div>
+
+      <form id="importForm">
+        <div class="form-group">
+          <label>Выберите CSV файл</label>
+          <input type="file" id="importFile" accept=".csv" />
+          <small class="form-hint">Кодировка UTF-8. Первая строка — заголовки.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Пример формата файла</label>
+          <textarea readonly class="code-example">date,type,category,amount,description
+2026-01-15,expense,food,12400,Продукты
+2026-01-05,income,salary,85000,Зарплата</textarea>
+        </div>
+
+        <div id="importPreview" style="display:none; max-height: 220px; overflow-y: auto; border:1px solid var(--color-border); border-radius: 8px; margin-top: 10px; background: var(--color-bg);"></div>
+
+        <div class="form-actions" style="margin-top: 14px;">
+          <button type="button" class="btn btn-ghost" id="btnCancelImport">Отмена</button>
+          <button type="submit" class="btn btn-primary" id="btnImportConfirm">Импортировать выбранное</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>Финансовый календарь &mdash; статический сайт для GitHub Pages. Данные хранятся только в вашем браузере.</p>
+      <p>Готово к загрузке: загрузите репозиторий и включите GitHub Pages в настройках репозитория.</p>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
